@@ -19,23 +19,19 @@ package com.aldrinpiri.authorization.service;
 import org.apache.nifi.reporting.InitializationException;
 import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
-import org.junit.Before;
 import org.junit.Test;
 
-public class TestStandardMyService {
+import com.aldrinpiri.authorization.processor.AuthorizeOnAttribute;
 
-    @Before
-    public void init() {
-
-    }
+public class TestFileBasedDelegateAuthorizationService {
 
     @Test
     public void testService() throws InitializationException {
-        final TestRunner runner = TestRunners.newTestRunner(TestProcessor.class);
+        final TestRunner runner = TestRunners.newTestRunner(AuthorizeOnAttribute.class);
         final FileBasedDelegatedAuthorizationProviderService service = new FileBasedDelegatedAuthorizationProviderService();
         runner.addControllerService("test-good", service);
 
-        runner.setProperty(service, FileBasedDelegatedAuthorizationProviderService.MY_PROPERTY, "test-value");
+        runner.setProperty(service, FileBasedDelegatedAuthorizationProviderService.AUTHORIZATION_FILE_PATH, "src/test/resources/sample-tokens");
         runner.enableControllerService(service);
 
         runner.assertValid(service);

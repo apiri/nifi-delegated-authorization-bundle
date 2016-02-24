@@ -16,40 +16,43 @@
  */
 package com.aldrinpiri.authorization.service;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Scanner;
 import java.util.Set;
 
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
-import org.apache.nifi.annotation.lifecycle.OnDisabled;
 import org.apache.nifi.annotation.lifecycle.OnEnabled;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
-import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.InitializationException;
 
 import com.aldrinpiri.authorization.util.AuthorizationToken;
+import com.aldrinpiri.authorization.util.StandardAuthorizationToken;
 
-@Tags({ "example"})
+@Tags({"example"})
 @CapabilityDescription("Example ControllerService implementation of DelegatedAuthorizationProviderService.")
 public class FileBasedDelegatedAuthorizationProviderService extends AbstractControllerService implements DelegatedAuthorizationProviderService {
 
-    public static final PropertyDescriptor MY_PROPERTY = new PropertyDescriptor
-            .Builder().name("My Property")
-            .description("Example Property")
-            .required(true)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .build();
+    public static final PropertyDescriptor AUTHORIZATION_FILE_PATH = new PropertyDescriptor.Builder()
+        .name("File")
+        .description("Location of the tokens file")
+        .required(true)
+        .addValidator(StandardValidators.FILE_EXISTS_VALIDATOR)
+        .build();
 
     private static final List<PropertyDescriptor> properties;
 
     static {
         final List<PropertyDescriptor> props = new ArrayList<>();
-        props.add(MY_PROPERTY);
+        props.add(AUTHORIZATION_FILE_PATH);
         properties = Collections.unmodifiableList(props);
     }
 
@@ -58,30 +61,34 @@ public class FileBasedDelegatedAuthorizationProviderService extends AbstractCont
         return properties;
     }
 
+
+    private volatile Set<AuthorizationToken> authorizationTokens = new HashSet<>();
+
     /**
-     * @param context
-     *            the configuration context
-     * @throws InitializationException
-     *             if unable to create a database connection
+     * @param context the configuration context
+     * @throws InitializationException if unable to create a database connection
      */
     @OnEnabled
     public void onEnabled(final ConfigurationContext context) throws InitializationException {
+        Set<AuthorizationToken> tokensToUse = new HashSet<>();
 
-    }
+        final String authorizationFilePath = context.getProperty(AUTHORIZATION_FILE_PATH).getValue();
 
-    @OnDisabled
-    public void shutdown() {
-
+        try (Scanner authsScanner = new Scanner(new File(authorizationFilePath))) {
+            authsScanner.useDelimiter(",");
+            while (authsScanner.hasNext()) {
+                tokensToUse.add(new StandardAuthorizationToken(authsScanner.next()));
+            }
+        } catch (IOException ioe) {
+            throw new InitializationException("Could not initialize " + this.getClass().getSimpleName() + " when trying to acquire authorizations.", ioe);
+        }
+        getLogger().info("Providing authorities for the following: {}", new Object[]{tokensToUse});
+        this.authorizationTokens = tokensToUse;
     }
 
     @Override
     public Set<AuthorizationToken> getAuthorizationTokens() {
-        return Collections.EMPTY_SET;
-    }
-
-    @Override
-    public void execute() throws ProcessException {
-
+        return Collections.unmodifiableSet(this.authorizationTokens);
     }
 
 }

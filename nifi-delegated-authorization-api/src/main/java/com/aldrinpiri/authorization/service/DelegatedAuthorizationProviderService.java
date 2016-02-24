@@ -21,7 +21,6 @@ import java.util.Set;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.controller.ControllerService;
-import org.apache.nifi.processor.exception.ProcessException;
 
 import com.aldrinpiri.authorization.util.AuthorizationToken;
 
@@ -30,7 +29,5 @@ import com.aldrinpiri.authorization.util.AuthorizationToken;
 public interface DelegatedAuthorizationProviderService extends ControllerService {
 
     Set<AuthorizationToken> getAuthorizationTokens();
-
-    void execute() throws ProcessException;
 
 }

@@ -18,15 +18,16 @@ package com.aldrinpiri.authorization.processor;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.nifi.controller.AbstractControllerService;
-import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
 import org.junit.Test;
 
 import com.aldrinpiri.authorization.service.DelegatedAuthorizationProviderService;
+import com.aldrinpiri.authorization.service.FileBasedDelegatedAuthorizationProviderService;
 import com.aldrinpiri.authorization.util.AuthorizationToken;
 import com.aldrinpiri.authorization.util.StandardAuthorizationToken;
 
@@ -102,6 +103,57 @@ public class TestAuthorizeOnAttribute {
 
     }
 
+    @Test
+    public void testAuthorizedValue_fileBasedAuthProvider() throws Exception {
+        // Establish values used throughout our test
+        final String controllerServiceName = "file-auth-provider";
+        final String attributeNameProperty = "access.required";
+
+        TestRunner testRunner = TestRunners.newTestRunner(AuthorizeOnAttribute.class);
+
+        // Establish the controller service instance to provide the authorization values
+        DelegatedAuthorizationProviderService fileBasedService = new FileBasedDelegatedAuthorizationProviderService();
+        final Map<String, String> authProviderProps = new HashMap<>();
+        authProviderProps.put(FileBasedDelegatedAuthorizationProviderService.AUTHORIZATION_FILE_PATH.getName(), "src/test/resources/sample-tokens");
+        testRunner.addControllerService(controllerServiceName, fileBasedService, authProviderProps);
+        testRunner.enableControllerService(fileBasedService);
+
+        testRunner.setProperty(AuthorizeOnAttribute.AUTHORIZATION_PROVIDER_SERVICE_PROP, controllerServiceName);
+        testRunner.setProperty(AuthorizeOnAttribute.TOKEN_ATTRIBUTE_NAME_PROP, attributeNameProperty);
+
+        HashMap<String, String> attributes = new HashMap<>();
+        attributes.put(attributeNameProperty, "us");
+        testRunner.enqueue(new byte[]{}, attributes);
+        testRunner.run();
+        testRunner.assertAllFlowFilesTransferred(AuthorizeOnAttribute.AUTHORIZED_REL);
+
+    }
+
+    @Test
+    public void testUnauthorizedValue_fileBasedAuthProvider() throws Exception {
+        // Establish values used throughout our test
+        final String controllerServiceName = "file-auth-provider";
+        final String attributeNameProperty = "access.required";
+
+        TestRunner testRunner = TestRunners.newTestRunner(AuthorizeOnAttribute.class);
+
+        // Establish the controller service instance to provide the authorization values
+        DelegatedAuthorizationProviderService fileBasedService = new FileBasedDelegatedAuthorizationProviderService();
+        final Map<String, String> authProviderProps = new HashMap<>();
+        authProviderProps.put(FileBasedDelegatedAuthorizationProviderService.AUTHORIZATION_FILE_PATH.getName(), "src/test/resources/sample-tokens");
+        testRunner.addControllerService(controllerServiceName, fileBasedService, authProviderProps);
+        testRunner.enableControllerService(fileBasedService);
+
+        testRunner.setProperty(AuthorizeOnAttribute.AUTHORIZATION_PROVIDER_SERVICE_PROP, controllerServiceName);
+        testRunner.setProperty(AuthorizeOnAttribute.TOKEN_ATTRIBUTE_NAME_PROP, attributeNameProperty);
+
+        HashMap<String, String> attributes = new HashMap<>();
+        attributes.put(attributeNameProperty, "jp");
+        testRunner.enqueue(new byte[]{}, attributes);
+        testRunner.run();
+        testRunner.assertAllFlowFilesTransferred(AuthorizeOnAttribute.UNAUTHORIZED_REL);
+
+    }
 
     public class MockDelegatedAuthorizationProviderService extends AbstractControllerService implements DelegatedAuthorizationProviderService {
         @Override
@@ -112,10 +164,6 @@ public class TestAuthorizeOnAttribute {
                 tokens.add(new StandardAuthorizationToken(tokenValue));
             }
             return tokens;
-        }
-
-        @Override
-        public void execute() throws ProcessException {
         }
     }
 }

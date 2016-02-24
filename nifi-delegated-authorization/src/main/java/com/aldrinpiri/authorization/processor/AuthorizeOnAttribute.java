@@ -96,9 +96,16 @@ public class AuthorizeOnAttribute extends AbstractProcessor {
             return;
         }
 
+        session.adjustCounter(tokenValue, 1, false);
+
         final AuthorizationToken authorizationToken = new StandardAuthorizationToken(tokenValue);
         final Set<AuthorizationToken> authorizationTokens = authProviderSvc.getAuthorizationTokens();
 
         session.transfer(flowFile, authorizationTokens.contains(authorizationToken) ? AUTHORIZED_REL : UNAUTHORIZED_REL);
+    }
+
+    private static Relationship recordAndRoute(final ProcessSession session, final Relationship relationship) {
+        session.adjustCounter(relationship.getName(), 1, false);
+        return relationship;
     }
 }
